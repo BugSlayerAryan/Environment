@@ -1,13 +1,13 @@
-import Navbar from "../components/Navbar";
-import Hero from "../components/Hero";
-import Features from "../components/Features";
-import DashboardPreview from "../components/DashboardPreview";
-import MapSection from "../components/MapSection";
-import Benefits from "../components/Benefits";
-import Technology from "../components/Technology";
-import UseCases from "../components/UseCases";
-import CTA from "../components/CTA";
-import Footer from "../components/Footer";
+import Navbar from "../LandingPageComponents/Navbar";
+import Hero from "../LandingPageComponents/Hero";
+import Features from "../LandingPageComponents/Features";
+import DashboardPreview from "../LandingPageComponents/DashboardPreview";
+import MapSection from "../LandingPageComponents/MapSection";
+import Benefits from "../LandingPageComponents/Benefits";
+import Technology from "../LandingPageComponents/Technology";
+import UseCases from "../LandingPageComponents/UseCases";
+import CTA from "../LandingPageComponents/CTA";
+import Footer from "../LandingPageComponents/Footer";
 
 
 export default function LandingPage() {
