@@ -12,7 +12,7 @@ import {
 import Header from '../DashboardComponents/Header ';
 import WeatherCard from '../DashboardComponents/WeatherCard';
 import AqiCard from '../DashboardComponents/AqiCard';
-import UVcard from '../DashboardComponents/UVcard';
+import UVcard from '../DashboardComponents/UvCard';
 import WaterQualityCard from '../DashboardComponents/WaterQualityCard';
 import SoilMonitoring from '../DashboardComponents/SoilMonitoring';
 import EcosystemMonitoring from '../DashboardComponents/EcosystemMonitoring';
