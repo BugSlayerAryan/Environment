@@ -321,9 +321,11 @@ const AqiCard = ({
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    if (location && location.lat && location.lon) {
+    const lat = Number(location?.lat);
+    const lon = Number(location?.lon);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
       try {
-        const data = await AQIAPI.get(location.lat, location.lon, { force: true });
+        const data = await AQIAPI.get(lat, lon, { force: true });
         setCurrentAqiValue(data.aqi || currentAqiValue);
         setCurrentPm25(data.pm25 || currentPm25);
         setCurrentPm10(data.pm10 || currentPm10);

@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Droplets, AlertCircle, Waves, MoreHorizontal } from 'lucide-react';
+import { WaterAPI } from '../api';
 
 /**
  * pH Status Classification
@@ -145,6 +146,11 @@ const WaterQualityCard = ({
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [mockIndex, setMockIndex] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasLiveError, setHasLiveError] = useState(false);
+  const [liveWaterData, setLiveWaterData] = useState(null);
+  const lastAutoFetchKeyRef = useRef(null);
 
   const cityMock = useMemo(() => {
     const lat = Number(location?.lat);
@@ -173,21 +179,131 @@ const WaterQualityCard = ({
     [cityMock.city]
   );
   const effectiveIndex = (mockIndex + cityHash) % activeSamples.length;
-  const waterData = activeSamples[effectiveIndex];
+  const mockWaterData = activeSamples[effectiveIndex];
+
+  useEffect(() => {
+    const lat = Number(location?.lat);
+    const lon = Number(location?.lon);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      setLiveWaterData(null);
+      setIsLoading(false);
+      return;
+    }
+
+    const fetchKey = `${lat.toFixed(6)},${lon.toFixed(6)}`;
+    if (lastAutoFetchKeyRef.current === fetchKey) {
+      return;
+    }
+    lastAutoFetchKeyRef.current = fetchKey;
+
+    let cancelled = false;
+
+    const fetchLiveWater = async () => {
+      setIsLoading(true);
+      setHasLiveError(false);
+
+      try {
+        const live = await WaterAPI.get(lat, lon);
+        if (cancelled) return;
+
+        const normalized = {
+          ...mockWaterData,
+          ...live,
+          pollutionLevel: String(live?.pollutionLevel || mockWaterData.pollutionLevel || 'moderate').toLowerCase(),
+          siteName: live?.siteName || mockWaterData.siteName,
+          timestamp: live?.timestamp || new Date().toISOString(),
+          turbidity: live?.turbidity || mockWaterData.turbidity,
+        };
+
+        setLiveWaterData(normalized);
+      } catch (error) {
+        if (cancelled) return;
+        console.error('❌ WaterQualityCard: failed to fetch live water data', error);
+        setLiveWaterData(null);
+        setHasLiveError(true);
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchLiveWater();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [location?.lat, location?.lon, mockWaterData]);
+
+  const waterData = liveWaterData || mockWaterData;
 
   // Derived states from waterData
   const phStatus = useMemo(() => getPHStatus(waterData.ph), [waterData.ph]);
   const doStatus = useMemo(() => getDOStatus(waterData.dissolvedOxygen), [waterData.dissolvedOxygen]);
   const pollutionStatus = useMemo(() => getPollutionStatus(waterData.pollutionLevel), [waterData.pollutionLevel]);
 
-  const handleRefresh = () => {
-    setMockIndex((prev) => (prev + 1) % activeSamples.length);
-  };
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+
+    setIsRefreshing(true);
+
+    const lat = Number(location?.lat);
+    const lon = Number(location?.lon);
+
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      try {
+        const live = await WaterAPI.get(lat, lon, { force: true });
+        const normalized = {
+          ...mockWaterData,
+          ...live,
+          pollutionLevel: String(live?.pollutionLevel || mockWaterData.pollutionLevel || 'moderate').toLowerCase(),
+          siteName: live?.siteName || mockWaterData.siteName,
+          timestamp: live?.timestamp || new Date().toISOString(),
+          turbidity: live?.turbidity || mockWaterData.turbidity,
+        };
+        setLiveWaterData(normalized);
+        setHasLiveError(false);
+      } catch (error) {
+        console.error('❌ WaterQualityCard: refresh failed, showing mock fallback', error);
+        setHasLiveError(true);
+        setLiveWaterData(null);
+        setMockIndex((prev) => (prev + 1) % activeSamples.length);
+      }
+    } else {
+      setLiveWaterData(null);
+      setMockIndex((prev) => (prev + 1) % activeSamples.length);
+    }
+
+    setTimeout(() => setIsRefreshing(false), 800);
+  }, [isRefreshing, location?.lat, location?.lon, mockWaterData, activeSamples.length]);
 
   // Close menu on outside click
   const handleMenuClick = () => {
     setIsMenuOpen(!isMenuOpen);
   };
+
+  if (isLoading && !liveWaterData) {
+    return (
+      <div className={`rounded-2xl p-4 sm:p-6 shadow-lg transition-all duration-300 ${
+        isDarkMode
+          ? 'bg-slate-800 border border-slate-700'
+          : 'bg-white border border-gray-100'
+      }`} role="status" aria-label="Loading water quality information" aria-busy="true">
+        <div className="animate-pulse space-y-4">
+          <div className="flex justify-between">
+            <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-24"></div>
+            <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-6"></div>
+          </div>
+          <div className="h-16 bg-gray-300 dark:bg-gray-600 rounded-lg w-full"></div>
+          <div className="space-y-2">
+            <div className="h-3 bg-gray-300 dark:bg-gray-600 rounded"></div>
+            <div className="h-3 bg-gray-300 dark:bg-gray-600 rounded"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -254,9 +370,9 @@ const WaterQualityCard = ({
                       : 'text-gray-700 hover:bg-cyan-50/70 border-b border-gray-100/50'
                   }`}
                   role="menuitem"
-                  aria-label="Load next mock water data"
+                  aria-label="Refresh water quality data"
                 >
-                  <span>🔄 Next Mock Sample</span>
+                  <span>{isRefreshing ? 'Refreshing...' : 'Refresh Data'}</span>
                 </button>
               </div>
             )}
@@ -351,7 +467,7 @@ const WaterQualityCard = ({
       <div className={`flex-shrink-0 text-xs text-center px-4 sm:px-6 pb-3 sm:pb-4 pt-0 transition-opacity hover:opacity-100 ${
         isDarkMode ? 'text-gray-500' : 'text-gray-400'
       }`}>
-        {cityMock.city} | {waterData.siteName} | {new Date(waterData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} | Mock data
+        {cityMock.city} | {waterData.siteName} | {new Date(waterData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} | {liveWaterData ? 'Live API data' : 'Mock fallback'}{hasLiveError ? ' (live unavailable)' : ''}
       </div>
     </div>
   );

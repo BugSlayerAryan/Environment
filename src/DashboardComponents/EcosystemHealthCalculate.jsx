@@ -68,6 +68,15 @@ const EcosystemHealthCalculate = ({ location = null, isDarkMode = false, onHealt
 
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
       setError('Location is unavailable.');
+      setLoading(false);
+      onHealthCalculatedRef.current({
+        score: 0,
+        status: 'Unavailable',
+        moduleScores: {},
+        unavailableModules: ['weather', 'aqi', 'uv', 'pollen', 'soil', 'water'],
+        hasLiveData: false,
+        updatedAt: new Date().toISOString(),
+      });
       return;
     }
 
@@ -206,6 +215,14 @@ const EcosystemHealthCalculate = ({ location = null, isDarkMode = false, onHealt
       } catch (loadError) {
         if (!cancelled) {
           setError(loadError?.message || 'Unable to calculate ecosystem health.');
+          onHealthCalculatedRef.current({
+            score: 0,
+            status: 'Unavailable',
+            moduleScores: {},
+            unavailableModules: ['weather', 'aqi', 'uv', 'pollen', 'soil', 'water'],
+            hasLiveData: false,
+            updatedAt: new Date().toISOString(),
+          });
         }
       } finally {
         if (!cancelled) {

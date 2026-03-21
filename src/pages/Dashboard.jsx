@@ -366,6 +366,7 @@ const Dashboard = () => {
     score: null,
     status: null,
     lastUpdatedAt: null,
+    hasResolved: false,
   });
 
   const handleLocationSelect = useCallback((coords) => {
@@ -380,6 +381,7 @@ const Dashboard = () => {
         score: null,
         status: null,
         lastUpdatedAt: null,
+        hasResolved: false,
       });
 
       return {
@@ -391,12 +393,16 @@ const Dashboard = () => {
   }, []);
 
   const handleHealthCalculated = useCallback((health) => {
-    if (!health?.hasLiveData) {
-      return;
-    }
-
     const nextScore = Number(health?.score);
-    if (!Number.isFinite(nextScore)) {
+    const hasNumericScore = Number.isFinite(nextScore);
+
+    if (!health?.hasLiveData || !hasNumericScore) {
+      setEcosystemSummary({
+        score: 0,
+        status: 'Unavailable',
+        lastUpdatedAt: health?.updatedAt || new Date().toISOString(),
+        hasResolved: true,
+      });
       return;
     }
 
@@ -404,6 +410,7 @@ const Dashboard = () => {
       score: nextScore,
       status: health?.status || 'Critical',
       lastUpdatedAt: health?.updatedAt || new Date().toISOString(),
+      hasResolved: true,
     });
   }, []);
 
@@ -450,7 +457,7 @@ const Dashboard = () => {
           score={ecosystemSummary.score}
           status={ecosystemSummary.status}
           cityName={weatherLocation.cityName || 'Selected City'}
-          isLoading={!Number.isFinite(Number(ecosystemSummary.score)) || !ecosystemSummary.status}
+          isLoading={!ecosystemSummary.hasResolved}
           lastUpdatedAt={ecosystemSummary.lastUpdatedAt}
           isDarkMode={isDarkMode}
         />

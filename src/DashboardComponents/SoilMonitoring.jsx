@@ -201,14 +201,12 @@ const SoilMonitoringCard = ({
   useEffect(() => {
     const lat = Number(location?.lat);
     const lon = Number(location?.lon);
-    const fetchKey = `${lat.toFixed(6)},${lon.toFixed(6)}`;
 
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-      setSoilSnapshot({ current: null, previous: null });
-      setError('Location coordinates are missing for live soil data.');
-      setIsLoading(false);
       return;
     }
+
+    const fetchKey = `${lat.toFixed(6)},${lon.toFixed(6)}`;
 
     const isManualRefresh = refreshKey > 0;
     if (!isManualRefresh && lastAutoFetchKeyRef.current === fetchKey) {
@@ -272,6 +270,9 @@ const SoilMonitoringCard = ({
   const soilAvailability = soilSnapshot.current?.soilAvailability ?? null;
   const actualLoading = isLoading || externalLoading;
   const hasValidLocation = Number.isFinite(Number(location?.lat)) && Number.isFinite(Number(location?.lon));
+  const displayError = hasValidLocation
+    ? error
+    : 'Location coordinates are missing for live soil data.';
   const hasMoisture =
     displayMoisture !== null &&
     displayMoisture !== undefined &&
@@ -372,11 +373,18 @@ const SoilMonitoringCard = ({
 
   // Compute pH status (use real data)
   const phData = useMemo(() => {
-    if (!hasPh) return { status: 'Unavailable', badge: 'moderate', color: 'blue' };
+    if (
+      displayPh === null ||
+      displayPh === undefined ||
+      !Number.isFinite(Number(displayPh)) ||
+      soilAvailability === 'unavailable'
+    ) {
+      return { status: 'Unavailable', badge: 'moderate', color: 'blue' };
+    }
     if (displayPh < 6) return { status: 'Acidic', badge: 'acidic', color: 'red' };
     if (displayPh < 7.3) return { status: 'Neutral', badge: 'neutral', color: 'green' };
     return { status: 'Alkaline', badge: 'alkaline', color: 'blue' };
-  }, [displayPh, hasPh]);
+  }, [displayPh, soilAvailability]);
 
   // Compute nutrient status (use real data)
   const nutrientColor = useMemo(() => {
@@ -424,7 +432,7 @@ const SoilMonitoringCard = ({
           <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" aria-hidden="true" />
           <div>
             <h3 className="font-semibold mb-1">Unable to load soil data</h3>
-            <p className="text-sm opacity-90">{error || 'No live soil metrics were returned by the API.'}</p>
+            <p className="text-sm opacity-90">{displayError || 'No live soil metrics were returned by the API.'}</p>
           </div>
         </div>
       </div>

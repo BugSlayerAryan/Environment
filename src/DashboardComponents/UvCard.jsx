@@ -169,9 +169,11 @@ const UvCard = ({
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    if (location && location.lat && location.lon) {
+    const lat = Number(location?.lat);
+    const lon = Number(location?.lon);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
       try {
-        const data = await UVAPI.get(location.lat, location.lon, { force: true });
+        const data = await UVAPI.get(lat, lon, { force: true });
         if (data) {
           setCurrentUvIndex(data.uvi || currentUvIndex);
           setCurrentSunlightHours(data.sunlightHours || currentSunlightHours);
